@@ -756,8 +756,19 @@ fn shell_quote(s: &str) -> String {
     }
 }
 
+/// Template output must stay inside the new project: no absolute paths, drive letters or `..`.
+fn is_safe_relative(path: &str) -> bool {
+    !path.is_empty()
+        && !path.starts_with(['/', '\\'])
+        && !path.contains(':')
+        && path.split(['/', '\\']).all(|c| !c.is_empty() && c != "..")
+}
+
 /// Writes all files, removing the partially created project directory on failure.
 fn write_project(target: &Path, files: &[OutFile]) -> Result<()> {
+    if let Some(bad) = files.iter().find(|f| !is_safe_relative(&f.path)) {
+        bail!("refusing to write outside the project directory: `{}`", bad.path);
+    }
     let existed = target.exists();
     let result = (|| -> Result<()> {
         std::fs::create_dir_all(target).with_context(|| format!("could not create {}", target.display()))?;
@@ -850,6 +861,14 @@ mod tests {
         assert_eq!(yaml_quote("it's"), "'it''s'");
         assert_eq!(plugin_id("My Plugin!"), "my-plugin");
         assert_eq!(plugin_id("9lives"), "p9lives");
+    }
+
+    #[test]
+    fn output_paths_must_stay_inside_the_project() {
+        assert!(is_safe_relative("src/main/java/Foo.java"));
+        for bad in ["../x", "a/../../x", "/etc/passwd", "C:\\x", "a//b", "", "\\evil", "a/../b"] {
+            assert!(!is_safe_relative(bad), "{bad}");
+        }
     }
 
     #[test]

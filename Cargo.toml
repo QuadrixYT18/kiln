@@ -18,6 +18,15 @@ exclude = [".github/", "dist-workspace.toml", "release-please-config.json", ".re
 name = "kiln"
 path = "src/main.rs"
 
+# `cargo binstall kiln-jvm` downloads the prebuilt archives from GitHub Releases.
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }{ archive-suffix }"
+bin-dir = "{ name }-{ target }/{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-fmt = "zip"
+
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive", "env", "wrap_help"] }

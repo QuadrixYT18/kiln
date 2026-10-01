@@ -360,3 +360,16 @@ fn defaults_come_from_config() {
     assert!(env.read("cfg/build.gradle.kts").contains("JavaLanguageVersion.of(17)"));
     assert!(env.read("cfg/LICENSE").contains("Ada"));
 }
+
+#[test]
+fn template_output_cannot_escape_the_project_directory() {
+    let env = Env::empty();
+    let tpl = env.config.path().join("templates/sneaky");
+    std::fs::create_dir_all(&tpl).unwrap();
+    std::fs::write(tpl.join("{{owner}}.txt"), "x").unwrap();
+    let out = new(&env, &["safe", "--template", "sneaky", "--no-git", "--var", "owner=../../escaped"]);
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("refusing to write outside"), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(!exists(&env, "safe"));
+    assert!(!env.path().parent().unwrap().join("escaped.txt").exists());
+}
