@@ -1,0 +1,32 @@
+[workspace]
+members = ["cargo:."]
+
+# Config for 'dist' (cargo-dist): https://opensource.axo.dev/cargo-dist/
+[dist]
+# The preferred dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.32.0"
+# CI backends to support
+ci = "github"
+# The installers to generate for each app
+installers = ["shell", "powershell", "homebrew"]
+# A GitHub repo to push Homebrew formulas to
+tap = "QuadrixYT18/homebrew-tap"
+# The formula is called `kiln` even though the crate is `kiln-jvm`
+formula = "kiln"
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+# Which actions to run on pull requests
+pr-run-mode = "plan"
+# Archives and checksums
+unix-archive = ".tar.gz"
+windows-archive = ".zip"
+checksum = "sha256"
+# Build provenance attestations for every artifact
+github-attestations = true
+# Publish to the Homebrew tap, crates.io, the Scoop bucket and (optionally) winget
+publish-jobs = ["homebrew", "./publish-crates", "./publish-scoop", "./publish-winget"]
+# Do not install a self-updater next to the binary
+install-updater = false
+
+# release-please creates the GitHub Release (with the CHANGELOG notes); dist only uploads to it
+create-release = false

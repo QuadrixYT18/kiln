@@ -253,3 +253,54 @@ fn no_project_gives_a_helpful_error() {
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("no Gradle or Maven project found"));
 }
+
+#[cfg(unix)]
+mod verify {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn fake_wrapper(env: &Env, name: &str, exit_code: i32) {
+        let p = env.path().join(name);
+        std::fs::write(&p, format!("#!/bin/sh\necho \"fake build $@\"\nexit {exit_code}\n")).unwrap();
+        std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    #[test]
+    fn verify_keeps_changes_when_the_build_passes() {
+        let env = Env::new("gradle-catalog");
+        fake_wrapper(&env, "gradlew", 0);
+        let out = env.kiln().args(["update", "--minor", "--verify"]).output().unwrap();
+        assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        assert!(
+            stdout(&out).contains("fake build build") && stdout(&out).contains("build succeeded"),
+            "{}",
+            stdout(&out)
+        );
+        assert!(env.read("gradle/libs.versions.toml").contains("guava = \"32.1.3-jre\""));
+    }
+
+    #[test]
+    fn verify_rolls_back_when_the_build_fails() {
+        let env = Env::new("gradle-catalog");
+        let old = env.read("gradle/libs.versions.toml");
+        fake_wrapper(&env, "gradlew", 1);
+        let out = env.kiln().args(["update", "--minor", "--verify"]).output().unwrap();
+        assert!(!out.status.success());
+        assert!(
+            String::from_utf8_lossy(&out.stderr).contains("rolled back"),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert_eq!(env.read("gradle/libs.versions.toml"), old, "changes must be reverted");
+    }
+
+    #[test]
+    fn verify_uses_the_maven_wrapper() {
+        let env = Env::new("maven");
+        let old = env.read("pom.xml");
+        fake_wrapper(&env, "mvnw", 1);
+        let out = env.kiln().args(["update", "--minor", "--verify"]).output().unwrap();
+        assert!(stdout(&out).contains("fake build -B verify"), "{}", stdout(&out));
+        assert_eq!(env.read("pom.xml"), old);
+    }
+}

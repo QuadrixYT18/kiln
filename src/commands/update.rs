@@ -112,15 +112,20 @@ pub async fn run(ctx: &Ctx, args: UpdateArgs) -> Result<()> {
                 }
                 seen.push(key);
                 let mark = if bump == Bump::Major { term::red("MAJOR") } else { term::yellow(bump.label()) };
+                let place = if project.modules.len() > 1 && c.dep.module != "libs.versions.toml" {
+                    format!("  {}", term::dim(&c.dep.module))
+                } else {
+                    String::new()
+                };
                 entries.push(Entry {
                     label: format!(
-                        "{}  {} {} {}  [{}]  {}",
+                        "{}  {} {} {}  [{}]{}",
                         c.dep.display_name(),
                         cur,
                         term::arrow(),
                         target,
                         mark,
-                        term::dim(&c.dep.module)
+                        place
                     ),
                     idx: i,
                     target,

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="330" viewBox="0 0 720 330" role="img" aria-label="Placeholder for the kiln demo GIF">
+  <rect width="720" height="330" rx="10" fill="#1e1e2e"/>
+  <circle cx="22" cy="20" r="6" fill="#f38ba8"/><circle cx="42" cy="20" r="6" fill="#f9e2af"/><circle cx="62" cy="20" r="6" fill="#a6e3a1"/>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#cdd6f4">
+    <text x="24" y="58"><tspan fill="#89b4fa">$</tspan> kiln new my-plugin --template paper --java 21</text>
+    <text x="24" y="80" fill="#a6e3a1">✔ Created my-plugin (17 files)</text>
+    <text x="24" y="116"><tspan fill="#89b4fa">$</tspan> kiln add hikari postgres jedis</text>
+    <text x="24" y="138" fill="#a6e3a1">✔ Added com.zaxxer:HikariCP 7.1.0 (implementation)</text>
+    <text x="24" y="158" fill="#a6e3a1">✔ Added org.postgresql:postgresql 42.7.13 (implementation)</text>
+    <text x="24" y="194"><tspan fill="#89b4fa">$</tspan> kiln outdated</text>
+    <text x="24" y="216">com.google.guava:guava   32.0.0   <tspan fill="#f9e2af">32.1.3</tspan>   <tspan fill="#f38ba8">33.2.1</tspan>   <tspan fill="#f38ba8">MAJOR</tspan></text>
+    <text x="24" y="236">org.slf4j:slf4j-api      2.0.9    <tspan fill="#f9e2af">2.0.13</tspan>   -        <tspan fill="#f9e2af">patch</tspan></text>
+    <text x="24" y="256">io.ktor:ktor-server-core 3.6.0    -        -        <tspan fill="#a6e3a1">up to date</tspan></text>
+    <text x="24" y="292"><tspan fill="#89b4fa">$</tspan> kiln update --minor --verify</text>
+    <text x="360" y="320" fill="#6c7086" font-size="12">placeholder, replace with docs/demo.gif</text>
+  </g>
+</svg>

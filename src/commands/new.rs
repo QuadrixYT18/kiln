@@ -772,6 +772,9 @@ fn write_project(target: &Path, files: &[OutFile]) -> Result<()> {
                 use std::os::unix::fs::PermissionsExt;
                 std::fs::set_permissions(&dest, std::fs::Permissions::from_mode(0o755))?;
             }
+            // Windows has no executable bit; `git update-index --chmod=+x` handles it later.
+            #[cfg(not(unix))]
+            let _ = f.exec;
         }
         Ok(())
     })();

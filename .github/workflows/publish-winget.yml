@@ -1,0 +1,30 @@
+# Called by the cargo-dist "Release" workflow (see `publish-jobs` in dist-workspace.toml).
+# Optional: only runs when the repository variable WINGET_ENABLED is "true".
+# Prerequisites: a fork of microsoft/winget-pkgs under your account, the secret
+# WINGET_TOKEN (classic PAT, scope public_repo) and an initial manifest for
+# QuadrixYT18.kiln that was submitted manually.
+name: Publish to winget
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        description: cargo-dist release plan (JSON)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  winget:
+    if: ${{ vars.WINGET_ENABLED == 'true' }}
+    # winget-releaser needs a Windows runner
+    runs-on: windows-latest
+    steps:
+      - uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: QuadrixYT18.kiln
+          installers-regex: 'x86_64-pc-windows-msvc\.zip$'
+          token: ${{ secrets.WINGET_TOKEN }}
+          release-tag: ${{ fromJson(inputs.plan).announcement_tag }}

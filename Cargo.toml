@@ -1,5 +1,5 @@
 [package]
-name = "kiln"
+name = "kiln-jvm"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.88"
@@ -11,6 +11,12 @@ readme = "README.md"
 keywords = ["gradle", "maven", "jvm", "dependencies", "cli"]
 categories = ["command-line-utilities", "development-tools"]
 exclude = [".github/", "dist-workspace.toml", "release-please-config.json", ".release-please-manifest.json"]
+
+# The crates.io name `kiln` is taken by an unrelated, abandoned crate, so the package is
+# published as `kiln-jvm`; the installed binary is still called `kiln`.
+[[bin]]
+name = "kiln"
+path = "src/main.rs"
 
 [dependencies]
 anyhow = "1"

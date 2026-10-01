@@ -39,7 +39,7 @@ pub fn all() -> Vec<Builtin> {
     vec![
         Builtin {
             id: "paper",
-            description: "Paper (Minecraft) plugin with paper-plugin.yml, run-paper and optional paperweight",
+            description: "Paper (Minecraft) server plugin",
             default_description: "A Paper plugin",
             langs: &["java", "kotlin"],
             repos: &[PAPER_REPO],
@@ -57,7 +57,7 @@ pub fn all() -> Vec<Builtin> {
         },
         Builtin {
             id: "velocity",
-            description: "Velocity proxy plugin with annotation-processed plugin descriptor",
+            description: "Velocity proxy plugin",
             default_description: "A Velocity proxy plugin",
             langs: &["java", "kotlin"],
             repos: &[PAPER_REPO],
@@ -71,7 +71,7 @@ pub fn all() -> Vec<Builtin> {
         },
         Builtin {
             id: "library",
-            description: "Java or Kotlin library with JUnit 5 tests and maven-publish",
+            description: "Java/Kotlin library with JUnit 5 tests",
             default_description: "A JVM library",
             langs: &["java", "kotlin"],
             repos: &[],
@@ -87,7 +87,7 @@ pub fn all() -> Vec<Builtin> {
         },
         Builtin {
             id: "backend",
-            description: "Backend service with Ktor (Kotlin) or Spring Boot (Java/Kotlin)",
+            description: "Backend service (Ktor or Spring Boot)",
             default_description: "A backend service",
             langs: &["kotlin", "java"],
             repos: &[],

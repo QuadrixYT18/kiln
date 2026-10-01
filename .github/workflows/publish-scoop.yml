@@ -1,0 +1,91 @@
+# Called by the cargo-dist "Release" workflow (see `publish-jobs` in dist-workspace.toml).
+# Writes bucket/kiln.json into the Scoop bucket repository.
+name: Publish to Scoop
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        description: cargo-dist release plan (JSON)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  BUCKET_REPO: QuadrixYT18/scoop-bucket
+  APP_REPO: QuadrixYT18/kiln
+  ARCHIVE: kiln-jvm-x86_64-pc-windows-msvc
+
+jobs:
+  scoop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine version
+        id: v
+        env:
+          TAG: ${{ fromJson(inputs.plan).announcement_tag }}
+        run: |
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Download the Windows archive and compute its checksum
+        id: sum
+        run: |
+          curl -fsSL -o archive.zip \
+            "https://github.com/${APP_REPO}/releases/download/${{ steps.v.outputs.tag }}/${ARCHIVE}.zip"
+          echo "sha256=$(sha256sum archive.zip | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.BUCKET_REPO }}
+          token: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+          path: bucket-repo
+
+      - name: Write manifest
+        run: |
+          mkdir -p bucket-repo/bucket
+          cat > bucket-repo/bucket/kiln.json <<JSON
+          {
+            "version": "${{ steps.v.outputs.version }}",
+            "description": "Set up JVM projects in seconds and manage Gradle/Maven dependencies from the command line",
+            "homepage": "https://github.com/${APP_REPO}",
+            "license": "MIT|Apache-2.0",
+            "architecture": {
+              "64bit": {
+                "url": "https://github.com/${APP_REPO}/releases/download/${{ steps.v.outputs.tag }}/${ARCHIVE}.zip",
+                "hash": "${{ steps.sum.outputs.sha256 }}",
+                "extract_dir": "${ARCHIVE}"
+              }
+            },
+            "bin": "kiln.exe",
+            "checkver": {
+              "github": "https://github.com/${APP_REPO}"
+            },
+            "autoupdate": {
+              "architecture": {
+                "64bit": {
+                  "url": "https://github.com/${APP_REPO}/releases/download/v\$version/${ARCHIVE}.zip",
+                  "extract_dir": "${ARCHIVE}"
+                }
+              }
+            }
+          }
+          JSON
+          # strip the indentation added by the YAML block
+          sed -i 's/^          //' bucket-repo/bucket/kiln.json
+          python3 -m json.tool bucket-repo/bucket/kiln.json > /dev/null
+
+      - name: Commit and push
+        working-directory: bucket-repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bucket/kiln.json
+          if git diff --cached --quiet; then
+            echo "Manifest is already up to date"
+          else
+            git commit -m "kiln: update to ${{ steps.v.outputs.version }}"
+            git push
+          fi

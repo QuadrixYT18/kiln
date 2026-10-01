@@ -1040,7 +1040,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "kiln"
+name = "kiln-jvm"
 version = "0.1.0"
 dependencies = [
  "anyhow",

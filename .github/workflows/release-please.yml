@@ -1,0 +1,27 @@
+name: release-please
+
+# Maintains a "Release PR" with the next version and CHANGELOG.md entry, derived
+# from Conventional Commits. Merging that PR creates the `vX.Y.Z` tag and the
+# GitHub Release, which starts the `Release` workflow (cargo-dist).
+#
+# IMPORTANT: use a personal access token (or a GitHub App token), not the default
+# GITHUB_TOKEN. Tags created with GITHUB_TOKEN do not trigger other workflows, so
+# the Release workflow would never start.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

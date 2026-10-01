@@ -1,0 +1,53 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. Please fill in as much as you can.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you run, what did you expect, and what happened instead?
+      placeholder: "I ran `kiln add hikari` in my Gradle project and ..."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: A minimal build file that reproduces the problem is the most helpful thing you can attach.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: kiln version
+      description: Output of `kiln --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Windows, macOS (Apple Silicon), macOS (Intel), Linux]
+    validations:
+      required: true
+  - type: dropdown
+    id: build-tool
+    attributes:
+      label: Build tool
+      options: [Gradle (Kotlin DSL), Gradle (Groovy DSL), Gradle with version catalog, Maven, Not applicable]
+  - type: input
+    id: terminal
+    attributes:
+      label: Terminal / shell
+      placeholder: Windows Terminal + PowerShell, iTerm2 + zsh, ...
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output / logs
+      render: shell
