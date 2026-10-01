@@ -98,12 +98,6 @@ pub fn line_end_inclusive(text: &str, pos: usize) -> usize {
     }
 }
 
-/// Splices `replacement` over `range`. Panics only on invalid UTF-8 boundaries,
-/// which would be a bug in the caller.
-pub fn splice(text: &mut String, range: std::ops::Range<usize>, replacement: &str) {
-    text.replace_range(range, replacement);
-}
-
 /// A pending text edit expressed against the *original* offsets of one scan.
 #[derive(Debug, Clone)]
 pub struct Edit {

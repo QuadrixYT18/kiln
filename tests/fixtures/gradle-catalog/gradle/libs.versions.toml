@@ -1,0 +1,14 @@
+# Version catalog
+[versions]
+slf4j = "2.0.9"
+guava = "32.0.0-jre"
+junit = "5.10.0"
+shadow = "8.3.0"
+
+[libraries]
+slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+
+[plugins]
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }

@@ -77,7 +77,7 @@ fn scan_gradle(project: &Project, ws: &mut Workspace, scan: &mut Scan) -> Result
     let mut props: Vars = BTreeMap::new();
     load_props(ws, &project.root, &mut props);
 
-    let mut plugin_site = |scan: &mut Scan, vars: &Vars, file: &Path, module: &str, gs: &gradle::GradleScan| {
+    let plugin_site = |scan: &mut Scan, vars: &Vars, file: &Path, module: &str, gs: &gradle::GradleScan| {
         for p in &gs.plugins {
             if let GPluginSource::Id { id, version: Some(v) } = &p.source {
                 let (current, site) = resolve_literal(v, file, vars);
@@ -87,8 +87,6 @@ fn scan_gradle(project: &Project, ws: &mut Workspace, scan: &mut Scan) -> Result
                     current,
                     site,
                     module: module.to_string(),
-                    file: file.to_path_buf(),
-                    config: Some("plugin".to_string()),
                 });
             }
         }
@@ -145,8 +143,6 @@ fn scan_gradle(project: &Project, ws: &mut Workspace, scan: &mut Scan) -> Result
                 current,
                 site,
                 module: file_name.clone(),
-                file: cat_path.clone(),
-                config: Some(lib.alias.clone()),
             });
         }
         for pl in &cat.plugins {
@@ -157,8 +153,6 @@ fn scan_gradle(project: &Project, ws: &mut Workspace, scan: &mut Scan) -> Result
                 current,
                 site,
                 module: file_name.clone(),
-                file: cat_path.clone(),
-                config: Some("plugin".into()),
             });
         }
         scan.catalog = Some(cat);
@@ -197,8 +191,6 @@ fn scan_gradle(project: &Project, ws: &mut Workspace, scan: &mut Scan) -> Result
                 current,
                 site,
                 module: module.name.clone(),
-                file: module.build_file.clone(),
-                config: Some(d.config.clone()),
             });
         }
         plugin_site(scan, &vars, &module.build_file, &module.name, &gs);
@@ -268,15 +260,7 @@ fn scan_maven(project: &Project, ws: &mut Workspace, scan: &mut Scan) -> Result<
                 Some(v) => maven_site(v, &module.build_file, &props),
                 None => (None, VersionSite::Managed),
             };
-            scan.deps.push(Dependency {
-                coord,
-                kind: DepKind::Library,
-                current,
-                site,
-                module: module.name.clone(),
-                file: module.build_file.clone(),
-                config: Some(d.scope.as_ref().map(|s| s.value.clone()).unwrap_or_else(|| "compile".into())),
-            });
+            scan.deps.push(Dependency { coord, kind: DepKind::Library, current, site, module: module.name.clone() });
         }
         for p in &pom.plugins {
             let Some(v) = &p.version else { continue };
@@ -287,8 +271,6 @@ fn scan_maven(project: &Project, ws: &mut Workspace, scan: &mut Scan) -> Result<
                 current,
                 site,
                 module: module.name.clone(),
-                file: module.build_file.clone(),
-                config: Some("plugin".into()),
             });
         }
         if let Some(parent) = &pom.parent
@@ -304,8 +286,6 @@ fn scan_maven(project: &Project, ws: &mut Workspace, scan: &mut Scan) -> Result<
                     current,
                     site,
                     module: module.name.clone(),
-                    file: module.build_file.clone(),
-                    config: Some("parent".into()),
                 });
             }
         }
@@ -424,8 +404,6 @@ mod tests {
             current: Some(v.into()),
             site: VersionSite::Managed,
             module: m.into(),
-            file: PathBuf::new(),
-            config: None,
         };
         let c = conflicts(&[mk("x", "1"), mk("y", "2")]);
         assert_eq!(c.len(), 1);

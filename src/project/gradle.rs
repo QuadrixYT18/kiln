@@ -160,12 +160,13 @@ fn block_name(m: &[u8], open: usize) -> String {
     while i > 0 && m[i - 1].is_ascii_whitespace() {
         i -= 1;
     }
-    if i > 0 && m[i - 1] == b')' {
-        if let Some(p) = matching_open_paren(m, i - 1) {
-            i = p;
-            while i > 0 && m[i - 1].is_ascii_whitespace() {
-                i -= 1;
-            }
+    if i > 0
+        && m[i - 1] == b')'
+        && let Some(p) = matching_open_paren(m, i - 1)
+    {
+        i = p;
+        while i > 0 && m[i - 1].is_ascii_whitespace() {
+            i -= 1;
         }
     }
     let end = i;
@@ -226,17 +227,17 @@ pub fn statements(m: &[u8], from: usize, to: usize) -> Vec<Range<usize>> {
             last_sig = i;
         }
         let at_end = i + 1 == to;
-        if (c == b'\n' && depth <= 0) || (c == b';' && depth <= 0) || at_end {
-            if let Some(s) = start {
-                let e = last_sig + 1;
-                let last = m[last_sig];
-                let continues = c == b'\n' && matches!(last, b',' | b'+' | b'=' | b'.' | b'(' | b'&' | b'|') && !at_end;
-                if !continues {
-                    if c != b';' || last != b';' {
-                        out.push(s..e);
-                    }
-                    start = None;
+        if ((c == b'\n' && depth <= 0) || (c == b';' && depth <= 0) || at_end)
+            && let Some(s) = start
+        {
+            let e = last_sig + 1;
+            let last = m[last_sig];
+            let continues = c == b'\n' && matches!(last, b',' | b'+' | b'=' | b'.' | b'(' | b'&' | b'|') && !at_end;
+            if !continues {
+                if c != b';' || last != b';' {
+                    out.push(s..e);
                 }
+                start = None;
             }
         }
         i += 1;
@@ -298,11 +299,8 @@ pub enum GSource {
 
 #[derive(Debug, Clone)]
 pub struct GDep {
-    pub config: String,
     pub stmt: Range<usize>,
     pub source: GSource,
-    pub platform: bool,
-    pub block: usize,
     pub in_buildscript: bool,
     pub quote: Option<char>,
     pub parens: bool,
@@ -316,7 +314,6 @@ pub enum GPluginSource {
 
 #[derive(Debug, Clone)]
 pub struct GPlugin {
-    pub stmt: Range<usize>,
     pub source: GPluginSource,
 }
 
@@ -414,7 +411,7 @@ fn named_arg(m: &[u8], src: &str, range: Range<usize>, key: &str) -> Option<Lit>
 }
 
 /// Parses the argument part of a dependency statement.
-fn parse_args(src: &str, m: &[u8], args: Range<usize>, platform: bool) -> Option<(GSource, bool, Option<char>)> {
+fn parse_args(src: &str, m: &[u8], args: Range<usize>) -> Option<(GSource, Option<char>)> {
     let s = skip_ws(m, args.start, args.end);
     if s >= args.end {
         return None;
@@ -422,7 +419,7 @@ fn parse_args(src: &str, m: &[u8], args: Range<usize>, platform: bool) -> Option
     if m[s] == b'"' || m[s] == b'\'' {
         let lit = string_literals(m, s..args.end).into_iter().next()?;
         let (coord, version) = gav_from_literal(src, lit)?;
-        return Some((GSource::Gav { coord, version }, platform, Some(m[s] as char)));
+        return Some((GSource::Gav { coord, version }, Some(m[s] as char)));
     }
     let id_end = read_ident(m, s, args.end, true);
     let word = &src[s..id_end];
@@ -430,13 +427,12 @@ fn parse_args(src: &str, m: &[u8], args: Range<usize>, platform: bool) -> Option
         let open = skip_ws(m, id_end, args.end);
         let close = matching_close(m, open)?;
         return match word {
-            "platform" | "enforcedPlatform" => parse_args(src, m, open + 1..close, true),
-            "testFixtures" | "variantOf" => parse_args(src, m, open + 1..close, platform),
+            "platform" | "enforcedPlatform" | "testFixtures" | "variantOf" => parse_args(src, m, open + 1..close),
             _ => None,
         };
     }
     if let Some(chain) = word.strip_prefix("libs.") {
-        return Some((GSource::Catalog { chain: chain.to_string() }, platform, None));
+        return Some((GSource::Catalog { chain: chain.to_string() }, None));
     }
     if word == "group" || word == "name" || word == "version" {
         let group = named_arg(m, src, args.clone(), "group")?;
@@ -445,12 +441,12 @@ fn parse_args(src: &str, m: &[u8], args: Range<usize>, platform: bool) -> Option
             return None;
         }
         let version = named_arg(m, src, args.clone(), "version");
-        return Some((GSource::Gav { coord: Coord::new(group.value, name.value), version }, platform, Some('"')));
+        return Some((GSource::Gav { coord: Coord::new(group.value, name.value), version }, Some('"')));
     }
     None
 }
 
-fn parse_dep_statement(src: &str, m: &[u8], stmt: Range<usize>, block: usize, in_buildscript: bool) -> Option<GDep> {
+fn parse_dep_statement(src: &str, m: &[u8], stmt: Range<usize>, in_buildscript: bool) -> Option<GDep> {
     let id_end = read_ident(m, stmt.start, stmt.end, false);
     if id_end == stmt.start {
         return None;
@@ -459,7 +455,6 @@ fn parse_dep_statement(src: &str, m: &[u8], stmt: Range<usize>, block: usize, in
     if m.get(id_end) == Some(&b'.') {
         return None;
     }
-    let config = src[stmt.start..id_end].to_string();
     let j = skip_ws(m, id_end, stmt.end);
     let (args, parens) = if j < stmt.end && m[j] == b'(' {
         let close = matching_close(m, j)?;
@@ -467,8 +462,8 @@ fn parse_dep_statement(src: &str, m: &[u8], stmt: Range<usize>, block: usize, in
     } else {
         (j..stmt.end, false)
     };
-    let (source, platform, quote) = parse_args(src, m, args, false)?;
-    Some(GDep { config, stmt, source, platform, block, in_buildscript, quote, parens })
+    let (source, quote) = parse_args(src, m, args)?;
+    Some(GDep { stmt, source, in_buildscript, quote, parens })
 }
 
 fn version_after(src: &str, m: &[u8], from: usize, end: usize) -> Option<Lit> {
@@ -504,7 +499,7 @@ fn parse_plugin_statement(src: &str, m: &[u8], stmt: Range<usize>) -> Option<GPl
             let id = if word == "kotlin" { format!("org.jetbrains.kotlin.{raw}") } else { raw };
             let after = if j < stmt.end && m[j] == b'(' { after } else { lit.end + 1 };
             let version = version_after(src, m, after.min(stmt.end), stmt.end);
-            Some(GPlugin { stmt, source: GPluginSource::Id { id, version } })
+            Some(GPlugin { source: GPluginSource::Id { id, version } })
         }
         "alias" => {
             let open = j;
@@ -512,7 +507,7 @@ fn parse_plugin_statement(src: &str, m: &[u8], stmt: Range<usize>) -> Option<GPl
                 let close = matching_close(m, open)?;
                 let inner = src[open + 1..close].trim();
                 let chain = inner.strip_prefix("libs.plugins.")?;
-                return Some(GPlugin { stmt, source: GPluginSource::Catalog { chain: chain.to_string() } });
+                return Some(GPlugin { source: GPluginSource::Catalog { chain: chain.to_string() } });
             }
             None
         }
@@ -574,12 +569,12 @@ fn collect_vars(src: &str, m: &[u8], blocks: &[Block], out: &mut BTreeMap<String
             continue;
         }
         k = skip_ws(mt, k + 1, mt.len());
-        if k < mt.len() && (mt[k] == b'"' || mt[k] == b'\'') {
-            if let Some(l) = string_literals(m, st.start + k..st.end).into_iter().next() {
-                if l.end + 1 == st.end || m[l.end + 1..st.end].iter().all(|c| c.is_ascii_whitespace()) {
-                    out.insert(name.to_string(), Lit { value: src[l.clone()].to_string(), range: l });
-                }
-            }
+        if k < mt.len()
+            && (mt[k] == b'"' || mt[k] == b'\'')
+            && let Some(l) = string_literals(m, st.start + k..st.end).into_iter().next()
+            && (l.end + 1 == st.end || m[l.end + 1..st.end].iter().all(|c| c.is_ascii_whitespace()))
+        {
+            out.insert(name.to_string(), Lit { value: src[l.clone()].to_string(), range: l });
         }
     }
 }
@@ -617,7 +612,7 @@ pub fn scan(src: &str, kotlin: bool) -> GradleScan {
                     if id_end > st.start && m.get(id_end) != Some(&b'.') {
                         scan.all_stmts.push((idx, src[st.start..id_end].to_string(), st.clone()));
                     }
-                    if let Some(d) = parse_dep_statement(src, &m, st, idx, in_buildscript) {
+                    if let Some(d) = parse_dep_statement(src, &m, st, in_buildscript) {
                         scan.deps.push(d);
                     }
                 }
@@ -661,16 +656,18 @@ pub fn parse_properties(src: &str) -> BTreeMap<String, Lit> {
     let mut offset = 0;
     for line in src.split_inclusive('\n') {
         let trimmed = line.trim();
-        if !trimmed.is_empty() && !trimmed.starts_with('#') && !trimmed.starts_with('!') {
-            if let Some(eq) = line.find(['=', ':']) {
-                let key = line[..eq].trim();
-                let raw = &line[eq + 1..];
-                let lead = raw.len() - raw.trim_start().len();
-                let val = raw.trim();
-                if !key.is_empty() && !val.is_empty() && !line.trim_end().ends_with('\\') {
-                    let start = offset + eq + 1 + lead;
-                    out.insert(key.to_string(), Lit { value: val.to_string(), range: start..start + val.len() });
-                }
+        if !trimmed.is_empty()
+            && !trimmed.starts_with('#')
+            && !trimmed.starts_with('!')
+            && let Some(eq) = line.find(['=', ':'])
+        {
+            let key = line[..eq].trim();
+            let raw = &line[eq + 1..];
+            let lead = raw.len() - raw.trim_start().len();
+            let val = raw.trim();
+            if !key.is_empty() && !val.is_empty() && !line.trim_end().ends_with('\\') {
+                let start = offset + eq + 1 + lead;
+                out.insert(key.to_string(), Lit { value: val.to_string(), range: start..start + val.len() });
             }
         }
         offset += line.len();
@@ -689,7 +686,7 @@ fn unit_indent(src: &str) -> String {
         }
         let n = line.len() - line.trim_start_matches(' ').len();
         if n > 0 && !line.trim().is_empty() {
-            return " ".repeat(n.min(4).max(2));
+            return " ".repeat(n.clamp(2, 4));
         }
     }
     "    ".into()
@@ -948,22 +945,21 @@ dependencies {
             .iter()
             .map(|d| match &d.source {
                 GSource::Gav { coord, version } => {
-                    format!("{} {}@{}", d.config, coord, version.as_ref().map(|v| v.value.as_str()).unwrap_or("-"))
+                    format!("{}@{}", coord, version.as_ref().map(|v| v.value.as_str()).unwrap_or("-"))
                 }
-                GSource::Catalog { chain } => format!("{} libs.{chain}", d.config),
+                GSource::Catalog { chain } => format!("libs.{chain}"),
             })
             .collect();
         assert_eq!(
             gavs,
             vec![
-                "implementation com.zaxxer:HikariCP@$hikariVersion",
-                "implementation org.postgresql:postgresql@42.7.3",
-                "implementation libs.guava",
-                "compileOnly org.slf4j:slf4j-api@2.0.9",
-                "implementation org.springframework.boot:spring-boot-dependencies@3.3.0",
+                "com.zaxxer:HikariCP@$hikariVersion",
+                "org.postgresql:postgresql@42.7.3",
+                "libs.guava",
+                "org.slf4j:slf4j-api@2.0.9",
+                "org.springframework.boot:spring-boot-dependencies@3.3.0",
             ]
         );
-        assert!(s.deps[4].platform);
         assert_eq!(s.vars["hikariVersion"].value, "5.1.0");
         assert_eq!(&KTS[s.vars["hikariVersion"].range.clone()], "5.1.0");
     }

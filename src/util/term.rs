@@ -55,10 +55,6 @@ pub fn interactive() -> bool {
     !ASSUME_YES.load(Ordering::Relaxed) && std::io::stdin().is_terminal() && std::io::stdout().is_terminal()
 }
 
-pub fn assume_yes() -> bool {
-    ASSUME_YES.load(Ordering::Relaxed)
-}
-
 macro_rules! painter {
     ($name:ident, $method:ident) => {
         pub fn $name(s: impl Display) -> String {

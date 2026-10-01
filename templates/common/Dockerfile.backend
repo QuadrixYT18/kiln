@@ -1,0 +1,19 @@
+# syntax=docker/dockerfile:1
+FROM gradle:jdk{{java_version}} AS build
+WORKDIR /home/gradle/project
+COPY --chown=gradle:gradle . .
+{{#if spring}}
+RUN gradle bootJar --no-daemon
+{{#else}}
+RUN gradle buildFatJar --no-daemon
+{{/if}}
+
+FROM eclipse-temurin:{{java_version}}-jre
+WORKDIR /app
+{{#if spring}}
+COPY --from=build /home/gradle/project/build/libs/*.jar app.jar
+{{#else}}
+COPY --from=build /home/gradle/project/build/libs/*-all.jar app.jar
+{{/if}}
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

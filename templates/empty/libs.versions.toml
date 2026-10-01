@@ -1,0 +1,11 @@
+[versions]
+{{#if kotlin}}
+kotlin = "{{latest:org.jetbrains.kotlin:kotlin-stdlib}}"
+{{/if}}
+
+[libraries]
+
+[plugins]
+{{#if kotlin}}
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+{{/if}}

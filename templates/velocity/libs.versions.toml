@@ -1,0 +1,14 @@
+[versions]
+velocity = "{{latest:com.velocitypowered:velocity-api?snapshot}}"
+{{#if kotlin}}
+kotlin = "{{latest:org.jetbrains.kotlin:kotlin-stdlib}}"
+{{/if}}
+
+[libraries]
+velocity-api = { module = "com.velocitypowered:velocity-api", version.ref = "velocity" }
+{{#if kotlin}}
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
+{{/if}}

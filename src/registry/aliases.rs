@@ -101,7 +101,7 @@ pub fn builtin() -> BTreeMap<String, Alias> {
         .iter()
         .filter_map(|(name, gav, repo)| {
             let (coord, _) = Coord::parse(gav)?;
-            Some((name.to_string(), Alias { coord, repo: repo.map(Repo::new) }))
+            Some((name.to_string(), Alias { coord, repo: repo.map(|u| Repo::new(&super::repo_override(u))) }))
         })
         .collect()
 }
@@ -141,6 +141,9 @@ mod tests {
     #[test]
     fn papermc_aliases_carry_repository() {
         let t = builtin();
-        assert_eq!(t["paper"].repo.as_ref().unwrap().0, "https://repo.papermc.io/repository/maven-public");
+        let repo = t["paper"].repo.as_ref().unwrap();
+        assert!(
+            repo.0 == "https://repo.papermc.io/repository/maven-public" || std::env::var("KILN_PAPERMC_URL").is_ok()
+        );
     }
 }

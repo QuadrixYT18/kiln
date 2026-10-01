@@ -562,6 +562,55 @@ mod tests {
     }
 
     #[test]
+    fn alias_repository_is_added_for_gradle_and_maven() {
+        let repo = Repo::new("https://repo.papermc.io/repository/maven-public/");
+        let coord = Coord::new("io.papermc.paper", "paper-api");
+        let mk = |r: &std::path::Path, f: &str, c: &str| {
+            write(r, f, c);
+            detect(r).unwrap()
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let project =
+            mk(dir.path(), "build.gradle.kts", "repositories {\n    mavenCentral()\n}\n\ndependencies {\n}\n");
+        let module = &project.modules[0];
+        let mut ws = Workspace::new();
+        let r = AddRequest {
+            coord: &coord,
+            version: Some("1.21-R0.1-SNAPSHOT"),
+            scope: Scope::CompileOnly,
+            module,
+            repo: Some(&repo),
+            known_repos: &[],
+        };
+        add_dependency(&mut ws, &project, &r).unwrap();
+        let t = ws.text(&module.build_file).unwrap();
+        assert!(t.contains("    maven(\"https://repo.papermc.io/repository/maven-public/\")\n}"), "{t}");
+        assert!(t.contains("compileOnly(\"io.papermc.paper:paper-api:1.21-R0.1-SNAPSHOT\")"), "{t}");
+
+        let dir = tempfile::tempdir().unwrap();
+        let project = mk(
+            dir.path(),
+            "pom.xml",
+            "<project>\n  <modelVersion>4.0.0</modelVersion>\n  <artifactId>a</artifactId>\n</project>\n",
+        );
+        let module = &project.modules[0];
+        let mut ws = Workspace::new();
+        let r = AddRequest {
+            coord: &coord,
+            version: Some("1.21-R0.1-SNAPSHOT"),
+            scope: Scope::CompileOnly,
+            module,
+            repo: Some(&repo),
+            known_repos: &[],
+        };
+        add_dependency(&mut ws, &project, &r).unwrap();
+        let t = ws.text(&module.build_file).unwrap();
+        assert!(t.contains("<url>https://repo.papermc.io/repository/maven-public/</url>"), "{t}");
+        assert!(t.contains("<scope>provided</scope>"), "{t}");
+        assert!(maven::scan(&t).is_ok());
+    }
+
+    #[test]
     fn updates_hit_exact_ranges() {
         let dir = tempfile::tempdir().unwrap();
         let p = dir.path().join("build.gradle.kts");

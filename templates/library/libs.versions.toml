@@ -1,0 +1,15 @@
+[versions]
+junit = "{{latest:org.junit:junit-bom}}"
+{{#if kotlin}}
+kotlin = "{{latest:org.jetbrains.kotlin:kotlin-stdlib}}"
+{{/if}}
+
+[libraries]
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+{{#if kotlin}}
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+{{/if}}

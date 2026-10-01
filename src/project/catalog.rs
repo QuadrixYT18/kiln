@@ -212,19 +212,19 @@ pub fn set_inline_version(text: &str, table: Table_, alias: &str, new: &str) -> 
         .and_then(Item::as_table_like_mut)
         .and_then(|t| t.get_mut(alias))
         .with_context(|| format!("catalog entry `{alias}` not found"))?;
-    if let Some(v) = item.as_value_mut() {
-        if let Some(s) = v.as_str() {
-            // "g:a:1.0" / "id:1.0" shorthand.
-            let mut parts: Vec<String> = s.split(':').map(String::from).collect();
-            let idx = if table == Table_::Libraries { 2 } else { 1 };
-            if parts.len() > idx {
-                parts[idx] = new.to_string();
-            } else {
-                parts.push(new.to_string());
-            }
-            replace_string(v, &parts.join(":"));
-            return Ok(doc.to_string());
+    if let Some(v) = item.as_value_mut()
+        && let Some(s) = v.as_str()
+    {
+        // "g:a:1.0" / "id:1.0" shorthand.
+        let mut parts: Vec<String> = s.split(':').map(String::from).collect();
+        let idx = if table == Table_::Libraries { 2 } else { 1 };
+        if parts.len() > idx {
+            parts[idx] = new.to_string();
+        } else {
+            parts.push(new.to_string());
         }
+        replace_string(v, &parts.join(":"));
+        return Ok(doc.to_string());
     }
     let tbl = item.as_table_like_mut().context("unsupported catalog entry")?;
     let ver = tbl.get_mut("version").with_context(|| format!("`{alias}` has no inline version"))?;

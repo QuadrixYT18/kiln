@@ -24,6 +24,18 @@ pub const DEFAULT_SEARCH: &str = "https://search.maven.org/solrsearch/select";
 pub const DEFAULT_GITHUB_API: &str = "https://api.github.com";
 pub const DEFAULT_GRADLE_API: &str = "https://services.gradle.org";
 
+/// Built-in repository URLs may be redirected (mirrors, tests): currently
+/// `KILN_PAPERMC_URL` replaces https://repo.papermc.io/repository/maven-public/.
+pub fn repo_override(url: &str) -> String {
+    if url.contains("repo.papermc.io")
+        && let Ok(v) = std::env::var("KILN_PAPERMC_URL")
+        && !v.is_empty()
+    {
+        return v;
+    }
+    url.to_string()
+}
+
 fn env_or(key: &str, default: &str) -> String {
     std::env::var(key).ok().filter(|v| !v.is_empty()).unwrap_or_else(|| default.to_string())
 }

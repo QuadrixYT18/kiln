@@ -1,0 +1,23 @@
+[versions]
+paper-api = "{{latest:io.papermc.paper:paper-api?snapshot}}"
+run-paper = "{{plugin:xyz.jpenilla.run-paper}}"
+{{#if kotlin}}
+kotlin = "{{latest:org.jetbrains.kotlin:kotlin-stdlib}}"
+{{/if}}
+{{#if paperweight}}
+paperweight = "{{plugin:io.papermc.paperweight.userdev}}"
+{{/if}}
+
+{{#unless paperweight}}
+[libraries]
+paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper-api" }
+
+{{/unless}}
+[plugins]
+run-paper = { id = "xyz.jpenilla.run-paper", version.ref = "run-paper" }
+{{#if kotlin}}
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+{{/if}}
+{{#if paperweight}}
+paperweight-userdev = { id = "io.papermc.paperweight.userdev", version.ref = "paperweight" }
+{{/if}}

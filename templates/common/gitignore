@@ -1,0 +1,37 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Kotlin
+.kotlin/
+
+# IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.classpath
+.project
+.settings/
+out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
+local.properties
+hs_err_pid*
+{{#if paper}}
+
+# Paper dev server
+run/
+{{/if}}
+{{#if docker}}
+
+# Docker
+.env
+{{/if}}

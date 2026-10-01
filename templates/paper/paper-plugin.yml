@@ -1,0 +1,6 @@
+name: {{name}}
+version: '${version}'
+main: {{package}}.{{class_name}}
+api-version: '{{api_version}}'
+description: {{description_yaml}}
+authors: [{{author_yaml}}]

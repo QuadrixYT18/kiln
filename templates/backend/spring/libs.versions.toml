@@ -1,0 +1,23 @@
+[versions]
+spring-boot = "{{plugin:org.springframework.boot}}"
+dependency-management = "{{plugin:io.spring.dependency-management}}"
+{{#if kotlin}}
+kotlin = "{{latest:org.jetbrains.kotlin:kotlin-stdlib}}"
+{{/if}}
+
+[libraries]
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+{{#if kotlin}}
+jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin" }
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
+{{/if}}
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "dependency-management" }
+{{#if kotlin}}
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+{{/if}}

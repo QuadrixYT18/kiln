@@ -1,0 +1,79 @@
+services:
+{{#if backend}}
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+{{#if postgres}}
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/{{db_name}}
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+{{/if}}
+{{#if redis}}
+{{#unless postgres}}
+    environment:
+{{/unless}}
+      REDIS_URL: redis://redis:6379
+{{/if}}
+{{#if postgres}}
+    depends_on:
+      - postgres
+{{/if}}
+{{/if}}
+{{#if paper}}
+  minecraft:
+    image: itzg/minecraft-server
+    ports:
+      - "25565:25565"
+    environment:
+      EULA: "TRUE"
+      TYPE: PAPER
+      VERSION: "{{mc_version}}"
+      MEMORY: 2G
+    volumes:
+      - ./build/libs:/plugins:ro
+      - minecraft-data:/data
+{{/if}}
+{{#if velocity}}
+  proxy:
+    image: itzg/mc-proxy
+    ports:
+      - "25577:25577"
+    environment:
+      TYPE: VELOCITY
+    volumes:
+      - ./build/libs:/plugins:ro
+      - proxy-data:/server
+{{/if}}
+{{#if postgres}}
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: {{db_name}}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+{{/if}}
+{{#if redis}}
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+{{/if}}
+{{#if volumes}}
+
+volumes:
+{{#if paper}}
+  minecraft-data:
+{{/if}}
+{{#if velocity}}
+  proxy-data:
+{{/if}}
+{{#if postgres}}
+  postgres-data:
+{{/if}}
+{{/if}}

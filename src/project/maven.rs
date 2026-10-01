@@ -250,19 +250,6 @@ pub fn resolve_property<'a>(value: &str, props: &'a BTreeMap<String, Text>) -> O
     Some((name.to_string(), t))
 }
 
-fn child_indent(text: &str, parent_open_end: usize, fallback: &str) -> String {
-    // Look at the first child element's indentation after `parent_open_end`.
-    let rest = &text[parent_open_end..];
-    if let Some(nl) = rest.find('\n') {
-        let after = &rest[nl + 1..];
-        let ws: String = after.chars().take_while(|c| *c == ' ' || *c == '\t').collect();
-        if after[ws.len()..].starts_with('<') && !after[ws.len()..].starts_with("</") {
-            return ws;
-        }
-    }
-    fallback.to_string()
-}
-
 fn unit_indent(text: &str) -> String {
     // Detect whether the file uses tabs or N spaces for the first nested level.
     for line in text.lines() {

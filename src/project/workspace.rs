@@ -39,10 +39,6 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn modified_paths(&self) -> Vec<PathBuf> {
-        self.files.values().filter(|f| f.is_modified()).map(|f| f.path.clone()).collect()
-    }
-
     pub fn has_changes(&self) -> bool {
         self.files.values().any(TextFile::is_modified)
     }

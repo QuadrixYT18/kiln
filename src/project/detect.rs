@@ -53,8 +53,7 @@ pub fn detect(start: &Path) -> Result<Project> {
     };
     if root.join("pom.xml").is_file() && gradle_build(&root).is_none() {
         // Walk up while the parent pom lists us as a module.
-        loop {
-            let Some(parent) = root.parent() else { break };
+        while let Some(parent) = root.parent() {
             let pom = parent.join("pom.xml");
             let Ok(text) = std::fs::read_to_string(&pom) else { break };
             let Ok(p) = maven::scan(&text) else { break };
@@ -77,10 +76,10 @@ pub fn detect(start: &Path) -> Result<Project> {
 
 fn strip_verbatim(p: PathBuf) -> PathBuf {
     let s = p.to_string_lossy();
-    if let Some(rest) = s.strip_prefix(r"\\?\") {
-        if !rest.starts_with("UNC\\") {
-            return PathBuf::from(rest);
-        }
+    if let Some(rest) = s.strip_prefix(r"\\?\")
+        && !rest.starts_with("UNC\\")
+    {
+        return PathBuf::from(rest);
     }
     p
 }

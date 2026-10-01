@@ -35,6 +35,7 @@ enable-ansi-support = "0.3"
 [dev-dependencies]
 assert_cmd = "2"
 predicates = "3"
+similar = "3"
 tempfile = "3"
 
 [profile.release]

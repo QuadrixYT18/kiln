@@ -1,6 +1,5 @@
 //! Shared data model for projects and dependencies.
 
-use std::ops::Range;
 use std::path::PathBuf;
 
 use crate::registry::Coord;
@@ -62,12 +61,6 @@ pub struct Project {
     pub settings: Option<PathBuf>,
 }
 
-impl Project {
-    pub fn is_multi_module(&self) -> bool {
-        self.modules.len() > 1
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum DepKind {
     Library,
@@ -77,12 +70,6 @@ pub enum DepKind {
     MavenPlugin,
     /// Maven `<parent>`.
     Parent,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CatalogTable {
-    Libraries,
-    Plugins,
 }
 
 /// Where the version of a dependency lives, i.e. what an update has to rewrite.
@@ -108,8 +95,6 @@ pub struct Dependency {
     pub site: VersionSite,
     /// Human-friendly place of declaration (module name, `libs.versions.toml`, …).
     pub module: String,
-    pub file: PathBuf,
-    pub config: Option<String>,
 }
 
 impl Dependency {
