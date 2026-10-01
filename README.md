@@ -382,6 +382,10 @@ Releases are automated; here is the one-time setup and the flow.
    [winget-releaser docs](https://github.com/vedantmgoyal9/winget-releaser)).
 4. In *Settings → Actions → General* allow GitHub Actions to create pull requests.
 
+**First release.** The project starts at version `0.0.0` (in `Cargo.toml` and `.release-please-manifest.json`), so the first
+Conventional Commit `feat: ...` on `main` makes release-please propose **0.1.0**. Make sure the squash-merge title of the
+first PR is a Conventional Commit (e.g. `feat: initial release`); otherwise release-please finds nothing to release.
+
 **Flow: from "code is done" to "installable"**
 
 1. Merge PRs with Conventional Commit titles into `main`.

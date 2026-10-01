@@ -73,8 +73,6 @@ jobs:
             }
           }
           JSON
-          # strip the indentation added by the YAML block
-          sed -i 's/^          //' bucket-repo/bucket/kiln.json
           python3 -m json.tool bucket-repo/bucket/kiln.json > /dev/null
 
       - name: Commit and push
