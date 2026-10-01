@@ -6,6 +6,7 @@ use crate::check::{Checked, check_all};
 use crate::cli::OutdatedArgs;
 use crate::context::Ctx;
 use crate::project::detect::detect;
+use crate::project::model::module_label;
 use crate::project::scan::{conflicts, scan_project};
 use crate::project::workspace::Workspace;
 use crate::registry::version::{Bump, Stability};
@@ -72,8 +73,8 @@ pub async fn run(ctx: &Ctx, args: OutdatedArgs) -> Result<()> {
             modules: Vec::new(),
             state,
         });
-        if !row.modules.contains(&c.dep.module) {
-            row.modules.push(c.dep.module.clone());
+        if !row.modules.contains(&module_label(&c.dep.module)) {
+            row.modules.push(module_label(&c.dep.module));
         }
     }
     let mut rows: Vec<Row> = rows.into_values().collect();

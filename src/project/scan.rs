@@ -209,7 +209,7 @@ fn maven_site(version: &Text, file: &Path, props: &BTreeMap<String, (PathBuf, Te
         let mut cur = name.to_string();
         for _ in 0..5 {
             match props.get(&cur) {
-                Some((f, t)) if t.value.starts_with("${") => {
+                Some((_, t)) if t.value.starts_with("${") => {
                     cur = t.value.trim_start_matches("${").trim_end_matches('}').to_string()
                 }
                 Some((f, t)) => {

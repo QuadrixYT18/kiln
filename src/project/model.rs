@@ -107,3 +107,8 @@ impl Dependency {
         }
     }
 }
+
+/// Human-friendly module name for output (`:` is the Gradle root project).
+pub fn module_label(name: &str) -> String {
+    if name == ":" { "root".to_string() } else { name.to_string() }
+}

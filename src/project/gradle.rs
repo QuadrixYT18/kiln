@@ -715,7 +715,13 @@ pub fn render_statement(scan: &GradleScan, config: &str, expr_catalog: Option<&s
         }
         _ => String::new(),
     };
-    let parens = scan.kotlin || scan.deps.iter().filter(|d| !d.in_buildscript).any(|d| d.parens);
+    // Groovy allows both `implementation 'x'` and `implementation('x')`: follow the majority.
+    let (with, without) = scan
+        .deps
+        .iter()
+        .filter(|d| !d.in_buildscript)
+        .fold((0usize, 0usize), |(w, wo), d| if d.parens { (w + 1, wo) } else { (w, wo + 1) });
+    let parens = scan.kotlin || with > without;
     if parens { format!("{config}({arg})") } else { format!("{config} {arg}") }
 }
 
@@ -1045,6 +1051,16 @@ dependencies {
         assert!(out.contains("    implementation \"redis.clients:jedis:5.1.0\"\n"), "{out}");
         let out = add_statement(GROOVY, false, "compileOnly", None, Some("a:b:1")).unwrap();
         assert!(out.contains("    compileOnly \"a:b:1\"\n"), "{out}");
+    }
+
+    #[test]
+    fn groovy_follows_the_majority_style() {
+        let src = "dependencies {\n    implementation 'a:b:1'\n    implementation('c:d:2')\n    testImplementation 'e:f:3'\n}\n";
+        let out = add_statement(src, false, "implementation", None, Some("x:y:1")).unwrap();
+        assert!(!out.contains("implementation('x:y:1')") && out.contains("implementation 'x:y:1'"), "{out}");
+        let src = "dependencies {\n    implementation('a:b:1')\n    implementation('c:d:2')\n    testImplementation 'e:f:3'\n}\n";
+        let out = add_statement(src, false, "implementation", None, Some("x:y:1")).unwrap();
+        assert!(out.contains("implementation('x:y:1')"), "{out}");
     }
 
     #[test]

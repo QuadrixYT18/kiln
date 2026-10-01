@@ -8,7 +8,7 @@ use crate::cli::AddArgs;
 use crate::context::Ctx;
 use crate::project::detect::detect;
 use crate::project::edit::{AddOutcome, AddRequest, add_dependency};
-use crate::project::model::Scope;
+use crate::project::model::{Scope, module_label};
 use crate::project::scan::scan_project;
 use crate::project::workspace::Workspace;
 use crate::registry::aliases::{self, Alias};
@@ -163,7 +163,7 @@ pub async fn run(ctx: &Ctx, args: AddArgs) -> Result<()> {
                     term::bold(coord),
                     term::cyan(&version),
                     term::dim(format!("({})", scope_label(&project, scope))),
-                    term::dim(format!("to {}", module.name)),
+                    term::dim(format!("to {}", module_label(&module.name))),
                 );
                 for n in notes {
                     println!("  {} {n}", term::dim("note:"));
@@ -174,7 +174,7 @@ pub async fn run(ctx: &Ctx, args: AddArgs) -> Result<()> {
                     "{} {} is already declared in {}{} {}",
                     term::warn_mark(),
                     coord,
-                    module.name,
+                    module_label(&module.name),
                     version.map(|v| format!(" ({v})")).unwrap_or_default(),
                     term::dim("- use `kiln update` to upgrade")
                 );

@@ -9,7 +9,7 @@ use crate::cli::UpdateArgs;
 use crate::context::Ctx;
 use crate::project::detect::detect;
 use crate::project::edit::apply_updates;
-use crate::project::model::{BuildKind, Project, VersionSite};
+use crate::project::model::{BuildKind, Project, VersionSite, module_label};
 use crate::project::scan::{conflicts, scan_project};
 use crate::project::workspace::Workspace;
 use crate::registry::aliases;
@@ -247,17 +247,35 @@ pub async fn run(ctx: &Ctx, args: UpdateArgs) -> Result<()> {
     }
 
     apply_updates(&mut ws, &updates)?;
+    // The same dependency may be declared several times (e.g. compileOnly + annotationProcessor).
+    let mut merged: Vec<(String, String, String, Bump, Vec<String>)> = Vec::new();
     for (name, from, to, bump, module) in &report {
+        let module = module_label(module);
+        match merged.iter_mut().find(|m| m.0 == *name && m.1 == *from && m.2 == *to) {
+            Some(m) => {
+                if !m.4.contains(&module) {
+                    m.4.push(module);
+                }
+            }
+            None => merged.push((name.clone(), from.clone(), to.clone(), *bump, vec![module])),
+        }
+    }
+    for (name, from, to, bump, modules) in &merged {
         let b = if *bump == Bump::Major { term::red(bump.label()) } else { term::yellow(bump.label()) };
+        let place = if project.modules.len() > 1 || project.kind == BuildKind::Maven {
+            format!(" {}", term::dim(modules.join(", ")))
+        } else {
+            String::new()
+        };
         println!(
-            "{} {} {} {} {} [{}] {}",
+            "{} {} {} {} {} [{}]{}",
             term::ok_mark(),
             term::bold(name),
             from,
             term::arrow(),
             term::green(to),
             b,
-            term::dim(module)
+            place
         );
     }
     if !ws.has_changes() {

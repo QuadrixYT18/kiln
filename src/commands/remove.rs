@@ -5,6 +5,7 @@ use crate::cli::RemoveArgs;
 use crate::context::Ctx;
 use crate::project::detect::detect;
 use crate::project::edit::{Selector, remove_dependency};
+use crate::project::model::module_label;
 use crate::project::workspace::Workspace;
 use crate::registry::aliases;
 use crate::util::term;
@@ -27,7 +28,10 @@ pub async fn run(ctx: &Ctx, args: RemoveArgs) -> Result<()> {
                     term::ok_mark(),
                     if args.dry_run { "Would remove" } else { "Removed" },
                     term::bold(name),
-                    term::dim(format!("from {}", out.removed_from.join(", ")))
+                    term::dim(format!(
+                        "from {}",
+                        out.removed_from.iter().map(|m| module_label(m)).collect::<Vec<_>>().join(", ")
+                    ))
                 );
                 for n in out.notes {
                     println!("  {} {n}", term::dim("note:"));
