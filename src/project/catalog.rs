@@ -444,3 +444,52 @@ db = ["hikari", "guava"]
         assert_eq!(accessor("kotlin-jvm_x"), "kotlin.jvm.x");
     }
 }
+
+#[cfg(test)]
+mod fuzz {
+    use super::*;
+    use crate::util::fuzz::{Rng, mutate, rounds};
+
+    const SNIPPETS: &[&str] = &[
+        "[",
+        "]",
+        "=",
+        "\"",
+        "{",
+        "}",
+        ".",
+        "\n",
+        "\r\n",
+        "[versions]",
+        "[libraries]",
+        "ü",
+        "version.ref",
+        "'",
+        "#",
+        ",",
+    ];
+    const SEEDS: &[&str] = &[
+        include_str!("../../tests/fixtures/gradle-catalog/gradle/libs.versions.toml"),
+        include_str!("../../tests/fixtures/multi-module/gradle/libs.versions.toml"),
+    ];
+
+    #[test]
+    fn catalog_editing_never_panics_on_broken_input() {
+        let mut rng = Rng(0x1234_5678_9ABC_DEF1);
+        for round in 0..rounds() {
+            let text = mutate(&mut rng, SEEDS[round % SEEDS.len()], SNIPPETS);
+            let Ok(cat) = parse(&text) else { continue };
+            let coord = Coord::new("a.b", "c");
+            let _ = add_library(&text, "c", &coord, Some("1.0"));
+            let _ = add_library(&text, "c", &coord, None);
+            for l in &cat.libraries {
+                let _ = remove_library(&text, &l.alias);
+                let _ = set_inline_version(&text, Table_::Libraries, &l.alias, "9.9");
+            }
+            for k in cat.versions.keys() {
+                let _ = set_version_key(&text, k, "9.9");
+                let _ = remove_version_key(&text, k);
+            }
+        }
+    }
+}

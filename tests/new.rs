@@ -369,7 +369,11 @@ fn template_output_cannot_escape_the_project_directory() {
     std::fs::write(tpl.join("{{owner}}.txt"), "x").unwrap();
     let out = new(&env, &["safe", "--template", "sneaky", "--no-git", "--var", "owner=../../escaped"]);
     assert!(!out.status.success());
-    assert!(String::from_utf8_lossy(&out.stderr).contains("refusing to write outside"), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        String::from_utf8_lossy(&out.stderr).contains("refusing to write outside"),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     assert!(!exists(&env, "safe"));
     assert!(!env.path().parent().unwrap().join("escaped.txt").exists());
 }

@@ -572,7 +572,8 @@ fn collect_vars(src: &str, m: &[u8], blocks: &[Block], out: &mut BTreeMap<String
         if k < mt.len()
             && (mt[k] == b'"' || mt[k] == b'\'')
             && let Some(l) = string_literals(m, st.start + k..st.end).into_iter().next()
-            && (l.end + 1 == st.end || m[l.end + 1..st.end].iter().all(|c| c.is_ascii_whitespace()))
+            && l.end < st.end
+            && m[l.end + 1..st.end].iter().all(|c| c.is_ascii_whitespace())
         {
             out.insert(name.to_string(), Lit { value: src[l.clone()].to_string(), range: l });
         }
@@ -1122,5 +1123,41 @@ dependencies {
         assert_eq!(var_reference("${foo}"), Some("foo"));
         assert_eq!(var_reference("1.0"), None);
         assert_eq!(var_reference("$foo.bar"), None);
+    }
+}
+
+#[cfg(test)]
+mod fuzz {
+    use super::*;
+    use crate::util::fuzz::{Rng, mutate, rounds};
+
+    const SNIPPETS: &[&str] = &[
+        "\"", "'", "{", "}", "(", ")", "$", "/", "*", "ü", "\n", "\r\n", "€", "//", "/*", "*/", "\"\"\"", "${",
+        "libs.", "\\", ";", ",",
+    ];
+
+    const SEEDS: &[&str] = &[
+        include_str!("../../tests/fixtures/gradle-kts/build.gradle.kts"),
+        include_str!("../../tests/fixtures/gradle-groovy/build.gradle"),
+        include_str!("../../tests/fixtures/gradle-catalog/build.gradle.kts"),
+        include_str!("../../tests/fixtures/multi-module/lib/build.gradle.kts"),
+    ];
+
+    #[test]
+    fn scanning_and_editing_never_panics_on_broken_input() {
+        let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
+        for round in 0..rounds() {
+            let text = mutate(&mut rng, SEEDS[round % SEEDS.len()], SNIPPETS);
+            for kotlin in [true, false] {
+                let s = scan(&text, kotlin);
+                let _ = add_statement(&text, kotlin, "implementation", None, Some("a:b:1"));
+                let _ = add_statement(&text, kotlin, "testImplementation", Some("x.y"), None);
+                let ranges: Vec<_> = s.deps.iter().map(|d| d.stmt.clone()).collect();
+                let _ = remove_statements(&text, &ranges);
+                let _ = ensure_repository(&text, kotlin, "https://example.org/m");
+            }
+            let _ = crate::project::detect::included_projects(&text);
+            let _ = parse_properties(&text);
+        }
     }
 }

@@ -630,3 +630,74 @@ mod tests {
         assert_eq!(ws.text(&p).unwrap(), "implementation(\"a:b:1.1\") // keep\nval v = \"2.5\"\n");
     }
 }
+
+#[cfg(test)]
+mod fuzz {
+    use super::*;
+    use crate::project::detect::detect;
+    use crate::project::scan::scan_project;
+    use crate::util::fuzz::{Rng, mutate, rounds};
+
+    const SNIPPETS: &[&str] =
+        &["\"", "'", "{", "}", "(", ")", "$", "ü", "\n", "\r\n", "libs.", "<", ">", "${", "[", "]", "="];
+
+    fn run(rel: &str, seeds: &[(&str, &str)], seed: u64) {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let mut rng = Rng(seed);
+        let build = root.join(rel);
+        for round in 0..rounds() {
+            // Write the (possibly mutated) project files.
+            for (i, (path, text)) in seeds.iter().enumerate() {
+                let content =
+                    if i == round % seeds.len() { mutate(&mut rng, text, SNIPPETS) } else { text.to_string() };
+                let p = root.join(path);
+                std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+                std::fs::write(p, content).unwrap();
+            }
+            let Ok(project) = detect(root) else { continue };
+            let mut ws = Workspace::new();
+            let Ok(scan) = scan_project(&project, &mut ws, &[]) else { continue };
+            let updates: Vec<_> = scan.deps.iter().map(|d| (d.site.clone(), "9.9.9".to_string())).collect();
+            let _ = apply_updates(&mut ws, &updates);
+            let module = &project.modules[0];
+            let coord = Coord::new("x.y", "z");
+            let mut ws = Workspace::new();
+            let req = AddRequest {
+                coord: &coord,
+                version: Some("1.0"),
+                scope: Scope::Test,
+                module,
+                repo: None,
+                known_repos: &[],
+            };
+            let _ = add_dependency(&mut ws, &project, &req);
+            let sel = Selector::new("z", &BTreeMap::new());
+            let _ = remove_dependency(&mut ws, &project, &[module], &sel);
+            let sel = Selector::new("guava", &BTreeMap::new());
+            let _ = remove_dependency(&mut ws, &project, &[module], &sel);
+            let _ = build.exists();
+        }
+    }
+
+    #[test]
+    fn gradle_project_operations_never_panic_on_broken_input() {
+        run(
+            "build.gradle.kts",
+            &[
+                ("settings.gradle.kts", "rootProject.name = \"x\"\n"),
+                ("build.gradle.kts", include_str!("../../tests/fixtures/gradle-catalog/build.gradle.kts")),
+                (
+                    "gradle/libs.versions.toml",
+                    include_str!("../../tests/fixtures/gradle-catalog/gradle/libs.versions.toml"),
+                ),
+            ],
+            11,
+        );
+    }
+
+    #[test]
+    fn maven_project_operations_never_panic_on_broken_input() {
+        run("pom.xml", &[("pom.xml", include_str!("../../tests/fixtures/maven/pom.xml"))], 13);
+    }
+}

@@ -392,3 +392,47 @@ mod tests {
         assert!(!Version::is_dynamic("1.2.3"));
     }
 }
+
+#[cfg(test)]
+mod fuzz {
+    use super::*;
+    use crate::util::fuzz::{Rng, mutate, rounds};
+
+    #[test]
+    fn version_logic_never_panics_and_ordering_is_total() {
+        let snippets = &[
+            ".",
+            "-",
+            "_",
+            "+",
+            "rc",
+            "RC1",
+            "beta",
+            "SNAPSHOT",
+            "ü",
+            "99999999999999999999999",
+            "0",
+            "jre",
+            "v",
+            " ",
+        ];
+        let mut rng = Rng(7);
+        let mut seen: Vec<String> = Vec::new();
+        for _ in 0..rounds() {
+            let a = mutate(&mut rng, "1.2.3-rc1", snippets);
+            let b = mutate(&mut rng, "2.0.0.Final", snippets);
+            let (va, vb) = (Version::new(&a), Version::new(&b));
+            // antisymmetry
+            assert_eq!(va.cmp(&vb), vb.cmp(&va).reverse(), "{a:?} vs {b:?}");
+            let _ = va.is_stable();
+            let _ = va.family();
+            let _ = va.bump_to(&vb);
+            seen.push(a);
+            if seen.len() > 20 {
+                let _ = candidates(&seen[0], &seen, Stability::Any);
+                let _ = latest(&seen, Stability::Stable);
+                seen.clear();
+            }
+        }
+    }
+}

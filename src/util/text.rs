@@ -77,22 +77,26 @@ impl TextFile {
     }
 }
 
+/// Start offset of the line containing byte offset `pos` (works for any offset,
+/// even in the middle of a multi-byte character).
+pub fn line_start(text: &str, pos: usize) -> usize {
+    let pos = pos.min(text.len());
+    text.as_bytes()[..pos].iter().rposition(|b| *b == b'\n').map(|i| i + 1).unwrap_or(0)
+}
+
 /// Returns the leading whitespace of the line that contains byte offset `pos`.
 pub fn line_indent(text: &str, pos: usize) -> &str {
-    let start = text[..pos.min(text.len())].rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let start = line_start(text, pos);
     let rest = &text[start..];
     let len = rest.len() - rest.trim_start_matches([' ', '\t']).len();
     &rest[..len]
 }
 
-pub fn line_start(text: &str, pos: usize) -> usize {
-    text[..pos.min(text.len())].rfind('\n').map(|i| i + 1).unwrap_or(0)
-}
-
 /// Offset just after the line break that ends the line containing `pos`
 /// (or the end of the text).
 pub fn line_end_inclusive(text: &str, pos: usize) -> usize {
-    match text[pos.min(text.len())..].find('\n') {
+    let pos = pos.min(text.len());
+    match text.as_bytes()[pos..].iter().position(|b| *b == b'\n') {
         Some(i) => pos + i + 1,
         None => text.len(),
     }

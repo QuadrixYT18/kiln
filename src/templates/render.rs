@@ -264,3 +264,24 @@ mod tests {
         assert_eq!(render(t, &Vars::new(), None).unwrap(), "ok\n");
     }
 }
+
+#[cfg(test)]
+mod fuzz {
+    use super::*;
+    use crate::util::fuzz::{Rng, mutate, rounds};
+
+    #[test]
+    fn rendering_never_panics_on_broken_templates() {
+        let seed = "{{#if kotlin}}\nplugins { {{name}} }\n{{#else}}\nx {{latest:g:a?pre|before:-R}}\n{{/if}}\n{{#unless a}}\n{{b}}\n{{/unless}}\n";
+        let snippets = &["{{", "}}", "{{#if x}}", "{{/if}}", "{{#else}}", "\n", "ü", "{", "}", "{{latest:", "|", "?"];
+        let mut rng = Rng(42);
+        let mut vars = Vars::new();
+        vars.insert("name".into(), "n".into());
+        for _ in 0..rounds() {
+            let text = mutate(&mut rng, seed, snippets);
+            let _ = scan(&text);
+            let _ = render(&text, &vars, None);
+            let _ = render(&text, &vars, Some(&BTreeMap::new()));
+        }
+    }
+}

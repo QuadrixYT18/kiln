@@ -574,3 +574,54 @@ mod tests {
         assert_eq!(scan(&ed.text).unwrap().repositories.len(), 1);
     }
 }
+
+#[cfg(test)]
+mod fuzz {
+    use super::*;
+    use crate::util::fuzz::{Rng, mutate, rounds};
+
+    const SNIPPETS: &[&str] = &[
+        "<",
+        ">",
+        "</",
+        "/>",
+        "&",
+        "&amp;",
+        "<!--",
+        "-->",
+        "<![CDATA[",
+        "]]>",
+        "ü",
+        "\n",
+        "\r\n",
+        "<dependency>",
+        "</dependencies>",
+        "${",
+        "}",
+    ];
+    const SEEDS: &[&str] = &[
+        include_str!("../../tests/fixtures/maven/pom.xml"),
+        include_str!("../../tests/fixtures/maven-multi/core/pom.xml"),
+        include_str!("../../tests/fixtures/maven-multi/pom.xml"),
+    ];
+
+    #[test]
+    fn pom_scanning_and_editing_never_panics_on_broken_input() {
+        let mut rng = Rng(0xDEAD_BEEF_CAFE_F00D);
+        for round in 0..rounds() {
+            let text = mutate(&mut rng, SEEDS[round % SEEDS.len()], SNIPPETS);
+            let Ok(pom) = scan(&text) else { continue };
+            let coord = Coord::new("a.b", "c");
+            let mut ed = PomEditor::new(&text);
+            let _ = ed.add_dependency(&coord, Some("1.0"), Scope::Test, Some("c.version"));
+            let mut ed = PomEditor::new(&text);
+            let _ = ed.ensure_repository("https://example.org/m", "example");
+            let _ = ed.set_property("x.version", "2");
+            let _ = ed.remove_property("x.version");
+            for d in &pom.dependencies {
+                let mut ed = PomEditor::new(&text);
+                ed.remove_element(d.element.clone());
+            }
+        }
+    }
+}
