@@ -37,7 +37,7 @@ jobs:
             "https://github.com/${APP_REPO}/releases/download/${{ steps.v.outputs.tag }}/${ARCHIVE}.zip"
           echo "sha256=$(sha256sum archive.zip | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: ${{ env.BUCKET_REPO }}
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
