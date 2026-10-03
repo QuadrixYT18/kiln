@@ -30,3 +30,6 @@ install-updater = false
 
 # release-please creates the GitHub Release (with the CHANGELOG notes); dist only uploads to it
 create-release = false
+
+# release.yml is edited by hand (Homebrew job uses RELEASE_PLEASE_TOKEN), so dist must not complain
+allow-dirty = ["ci"]

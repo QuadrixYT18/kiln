@@ -371,10 +371,8 @@ Releases are automated; here is the one-time setup and the flow.
 
    | Secret | Purpose |
    |--------|---------|
-   | `RELEASE_PLEASE_TOKEN` | fine-grained PAT (Contents + Pull requests: read/write on `kiln`); needed so tags trigger the release workflow |
+   | `RELEASE_PLEASE_TOKEN` | fine-grained PAT (Contents + Pull requests: read/write) on `kiln`, `homebrew-tap` and `scoop-bucket`; also pushes the Homebrew formula and Scoop manifest, and makes tags trigger the release workflow |
    | `CARGO_REGISTRY_TOKEN` | crates.io API token with *publish-new* and *publish-update* scopes |
-   | `HOMEBREW_TAP_TOKEN` | fine-grained PAT with Contents: write on `homebrew-tap` |
-   | `SCOOP_BUCKET_TOKEN` | fine-grained PAT with Contents: write on `scoop-bucket` |
 
    Optional winget: fork [`microsoft/winget-pkgs`](https://github.com/microsoft/winget-pkgs) to your account, add
    `WINGET_TOKEN` (classic PAT with `public_repo`) and set the repository **variable** `WINGET_ENABLED=true`.

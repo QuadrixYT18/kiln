@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: ${{ env.BUCKET_REPO }}
-          token: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           path: bucket-repo
 
       - name: Write manifest
