@@ -228,11 +228,19 @@ pub async fn run(ctx: &Ctx, args: UpdateArgs) -> Result<()> {
                 term::arrow(),
                 term::red(&p.target)
             );
-            if let Some(n) = notes {
-                println!("    {} {}", term::cyan(&n.title), term::dim(&n.url));
-                for line in n.summary {
-                    println!("      {line}");
+            match notes {
+                Some(n) => {
+                    println!("    {} {}", term::cyan(&n.title), term::dim(&n.url));
+                    for line in n.summary {
+                        println!("      {line}");
+                    }
                 }
+                None => println!(
+                    "    {}",
+                    term::dim(
+                        "no release notes found (the POM has no GitHub link, or no release matches this version)"
+                    )
+                ),
             }
         }
         println!();

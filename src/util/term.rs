@@ -8,6 +8,7 @@ use owo_colors::OwoColorize;
 
 static COLOR: AtomicBool = AtomicBool::new(false);
 static ASSUME_YES: AtomicBool = AtomicBool::new(false);
+static VERBOSE: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum, Default)]
 pub enum ColorChoice {
@@ -44,6 +45,15 @@ fn enable_ansi() -> bool {
 #[cfg(not(windows))]
 fn enable_ansi() -> bool {
     true
+}
+
+pub fn set_verbose(v: bool) {
+    VERBOSE.store(v, Ordering::Relaxed);
+}
+
+/// Whether `-v/--verbose` (or `KILN_VERBOSE`) asks for full diagnostics such as complete URLs.
+pub fn verbose() -> bool {
+    VERBOSE.load(Ordering::Relaxed)
 }
 
 pub fn color_enabled() -> bool {

@@ -162,7 +162,7 @@ Run `kiln <command> --help` for all options and examples.
 
 ## Commands
 
-Global options: `-C, --path <DIR>` (run elsewhere), `--offline`, `--no-cache`, `-y, --yes` (never prompt),
+Global options: `-C, --path <DIR>` (run elsewhere), `--offline`, `--no-cache`, `-v, --verbose` (full URLs and error details), `-y, --yes` (never prompt),
 `--color <auto|always|never>`. `NO_COLOR` is respected.
 
 ### `kiln new [NAME]`
@@ -206,8 +206,8 @@ kiln add paper-api --compile-only     # also adds the PaperMC repository to your
 kiln add jedis --module :app --dry-run
 ```
 
-- **Name resolution:** alias → `group:artifact[:version]` → Maven Central search (sorted by relevance and
-  recency; you pick when ambiguous, non-interactive runs take the best hit and say so).
+- **Name resolution:** alias → `group:artifact[:version]` → Maven Central search (with the Central website's search
+  as fallback; sorted by relevance and recency; you pick when ambiguous, non-interactive runs take the best hit and say so).
 - **Versions:** the newest *stable* release; alpha/beta/RC/milestone/SNAPSHOT are ignored unless you pass `--pre`.
   Repositories declared in your project (e.g. `repo.papermc.io`) are queried through their `maven-metadata.xml`.
 - **Where it goes:** with a version catalog, the entry lands in `libs.versions.toml` and the build script gets
@@ -281,7 +281,7 @@ author  = "Jane Doe"
 ```
 
 Environment variables: `KILN_CONFIG_DIR`, `KILN_CACHE_DIR`, `KILN_CACHE_TTL` (seconds), `KILN_OFFLINE`, `GITHUB_TOKEN`
-(release notes), `NO_COLOR`. Service endpoints can be redirected for mirrors: `KILN_CENTRAL_URL`, `KILN_SEARCH_URL`,
+(release notes), `NO_COLOR`. Service endpoints can be redirected for mirrors: `KILN_CENTRAL_URL`, `KILN_SEARCH_URL`, `KILN_SEARCH_FALLBACK_URL`,
 `KILN_PLUGIN_PORTAL_URL`, `KILN_GITHUB_API_URL`, `KILN_GRADLE_API_URL`.
 
 **Caching and offline mode.** Version lookups run in parallel and are cached (default one hour). `--offline` answers

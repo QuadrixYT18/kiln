@@ -8,6 +8,7 @@ use anyhow::{Result, anyhow, bail};
 use tokio::sync::Semaphore;
 
 use super::cache::Cache;
+use crate::util::term;
 
 pub const USER_AGENT: &str = concat!("kiln/", env!("CARGO_PKG_VERSION"), " (+https://github.com/QuadrixYT18/kiln)");
 
@@ -46,10 +47,29 @@ pub struct Http {
 /// Minimum spacing between two requests to the same (rate-limited) host.
 fn min_interval(host: &str) -> Duration {
     match host {
-        "search.maven.org" => Duration::from_millis(300),
+        "search.maven.org" | "central.sonatype.com" => Duration::from_millis(300),
         "api.github.com" => Duration::from_millis(250),
         _ => Duration::ZERO,
     }
+}
+
+/// `host` normally, the full URL with `--verbose`.
+fn where_(url: &str) -> String {
+    if term::verbose() { url.to_string() } else { host_of(url).to_string() }
+}
+
+fn net_err(url: &str, e: &reqwest::Error) -> anyhow::Error {
+    if term::verbose() {
+        return anyhow!("request to {url} failed: {e:?}");
+    }
+    let why = if e.is_timeout() {
+        "timed out"
+    } else if e.is_connect() {
+        "could not connect"
+    } else {
+        "request failed"
+    };
+    anyhow!("{}: {why} (use --verbose for details)", host_of(url))
 }
 
 fn host_of(url: &str) -> &str {
@@ -93,6 +113,20 @@ impl Http {
         }
     }
 
+    /// POST a JSON body (never cached). Used only for the search fallback.
+    pub async fn post_json(&self, url: &str, body: &serde_json::Value) -> Result<Response> {
+        if self.opts.offline {
+            bail!("offline mode: search needs network access");
+        }
+        let host = host_of(url).to_string();
+        let _permit = self.permits.acquire().await.map_err(|e| anyhow!(e))?;
+        self.throttle(&host).await;
+        let resp = self.client.post(url).json(body).send().await.map_err(|e| net_err(url, &e))?;
+        let status = resp.status().as_u16();
+        let text = resp.text().await.map_err(|e| anyhow!("reading response from {}: {e}", where_(url)))?;
+        Ok(Response { status, body: text })
+    }
+
     /// GET `url`; 200 and 404 are returned (and cached), other statuses are errors.
     pub async fn get(&self, url: &str) -> Result<Response> {
         self.get_with(url, &[]).await
@@ -106,7 +140,10 @@ impl Http {
             return Ok(Response { status: hit.status, body: hit.body });
         }
         if self.opts.offline {
-            bail!("offline mode: no cached response for {url}");
+            if term::verbose() {
+                bail!("offline mode: no cached response for {url}");
+            }
+            bail!("offline mode: no cached data for {} (run without --offline once to fill the cache)", host_of(url));
         }
 
         let host = host_of(url).to_string();
@@ -129,12 +166,12 @@ impl Http {
                             .and_then(|v| v.parse::<u64>().ok())
                             .map(|s| Duration::from_secs(s.min(30)))
                             .unwrap_or_else(|| Duration::from_millis(500 * 2u64.pow(attempt)));
-                        last_err = Some(anyhow!("{url} returned HTTP {status}"));
+                        last_err = Some(anyhow!("{} returned HTTP {status}", where_(url)));
                         tokio::time::sleep(wait).await;
                         continue;
                     }
                     if status != 200 && status != 404 {
-                        bail!("{url} returned HTTP {status}");
+                        bail!("{} returned HTTP {status}", where_(url));
                     }
                     let body = resp.text().await.map_err(|e| anyhow!("reading {url}: {e}"))?;
                     if !self.opts.no_cache {
@@ -143,7 +180,7 @@ impl Http {
                     return Ok(Response { status, body });
                 }
                 Err(e) => {
-                    last_err = Some(anyhow!("request to {url} failed: {e}"));
+                    last_err = Some(net_err(url, &e));
                     tokio::time::sleep(Duration::from_millis(300 * 2u64.pow(attempt))).await;
                 }
             }

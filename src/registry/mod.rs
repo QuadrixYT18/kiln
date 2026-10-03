@@ -17,10 +17,13 @@ use anyhow::{Result, anyhow, bail};
 
 use self::http::Http;
 use self::version::{Stability, Version};
+use crate::util::term;
 
 pub const DEFAULT_CENTRAL: &str = "https://repo.maven.apache.org/maven2";
 pub const DEFAULT_PLUGIN_PORTAL: &str = "https://plugins.gradle.org/m2";
 pub const DEFAULT_SEARCH: &str = "https://search.maven.org/solrsearch/select";
+/// Fallback used by the Maven Central website (best effort, undocumented).
+pub const DEFAULT_SEARCH_FALLBACK: &str = "https://central.sonatype.com/api/internal/browse/components";
 pub const DEFAULT_GITHUB_API: &str = "https://api.github.com";
 pub const DEFAULT_GRADLE_API: &str = "https://services.gradle.org";
 
@@ -47,6 +50,7 @@ pub struct Endpoints {
     pub central: String,
     pub plugin_portal: String,
     pub search: String,
+    pub search_fallback: String,
     pub github_api: String,
     pub gradle_api: String,
 }
@@ -57,6 +61,7 @@ impl Endpoints {
             central: env_or("KILN_CENTRAL_URL", DEFAULT_CENTRAL),
             plugin_portal: env_or("KILN_PLUGIN_PORTAL_URL", DEFAULT_PLUGIN_PORTAL),
             search: env_or("KILN_SEARCH_URL", DEFAULT_SEARCH),
+            search_fallback: env_or("KILN_SEARCH_FALLBACK_URL", DEFAULT_SEARCH_FALLBACK),
             github_api: env_or("KILN_GITHUB_API_URL", DEFAULT_GITHUB_API),
             gradle_api: env_or("KILN_GRADLE_API_URL", DEFAULT_GRADLE_API),
         }
@@ -267,8 +272,21 @@ impl Registry {
                 Err(e) => last_err = Some(e),
             }
         }
-        if !any_ok && let Some(e) = last_err {
-            return Err(e);
+        if !any_ok {
+            // The primary API is down or changed: try the Central website's own search.
+            match self.search_fallback(query).await {
+                Ok(h) if !h.is_empty() => hits = h,
+                Ok(_) => {}
+                Err(fallback_err) => {
+                    if let Some(e) = last_err {
+                        return Err(if term::verbose() {
+                            anyhow!("{e}; fallback search failed: {fallback_err}")
+                        } else {
+                            e
+                        });
+                    }
+                }
+            }
         }
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -279,6 +297,32 @@ impl Registry {
         }
         hits.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
         Ok(hits)
+    }
+
+    async fn search_fallback(&self, query: &str) -> Result<Vec<SearchHit>> {
+        let body = serde_json::json!({ "size": 20, "searchTerm": query });
+        let r = self.http.post_json(&self.endpoints.search_fallback, &body).await?;
+        if r.status != 200 {
+            bail!("search fallback returned HTTP {}", r.status);
+        }
+        let v: serde_json::Value =
+            serde_json::from_str(&r.body).map_err(|e| anyhow!("unexpected fallback response: {e}"))?;
+        let comps = v.get("components").and_then(|c| c.as_array()).cloned().unwrap_or_default();
+        Ok(comps
+            .iter()
+            .filter_map(|c| {
+                let group = c.get("namespace")?.as_str()?;
+                let artifact = c.get("name")?.as_str()?;
+                let info = c.get("latestVersionInfo");
+                Some(SearchHit {
+                    coord: Coord::new(group, artifact),
+                    latest: info.and_then(|i| i.get("version")).and_then(|x| x.as_str()).map(String::from),
+                    timestamp_ms: info.and_then(|i| i.get("timestampUnixWithMS")).and_then(|x| x.as_u64()),
+                    version_count: 0,
+                    score: 0.0,
+                })
+            })
+            .collect())
     }
 
     /// Current Gradle release (version + optional wrapper checksum).

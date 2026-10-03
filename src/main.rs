@@ -44,6 +44,7 @@ fn is_cancelled(err: &anyhow::Error) -> bool {
 fn main() -> ExitCode {
     let cli = Cli::parse();
     term::init(cli.color, cli.yes);
+    term::set_verbose(cli.verbose);
     let runtime = match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(e) => {

@@ -38,6 +38,10 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub no_cache: bool,
 
+    /// Show full diagnostics (complete URLs and error details)
+    #[arg(short = 'v', long, global = true, env = "KILN_VERBOSE")]
+    pub verbose: bool,
+
     /// Answer prompts with their defaults (non-interactive)
     #[arg(short = 'y', long, global = true)]
     pub yes: bool,

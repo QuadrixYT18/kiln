@@ -470,6 +470,156 @@ impl PomEditor {
     }
 }
 
+/// Where `annotationProcessorPaths` can be added to the build.
+#[derive(Debug, Default)]
+struct CompilerSpots {
+    /// `</annotationProcessorPaths>` of the compiler plugin configuration.
+    paths_close: Option<usize>,
+    /// `</configuration>` of the compiler plugin.
+    config_close: Option<usize>,
+    /// `</plugin>` of the compiler plugin.
+    plugin_close: Option<usize>,
+    /// `</plugins>` of `<project><build><plugins>`.
+    plugins_close: Option<usize>,
+    /// `</build>` of `<project><build>`.
+    build_close: Option<usize>,
+}
+
+fn compiler_spots(text: &str) -> Result<CompilerSpots> {
+    let evs = events(text)?;
+    let mut spots = CompilerSpots::default();
+    let mut path: Vec<String> = Vec::new();
+    // Start offset of every currently open `plugin` element with its artifactId.
+    let mut plugin_artifact: Option<String> = None;
+    let mut in_compiler = false;
+    for ev in &evs {
+        match ev {
+            Ev::Start { name, .. } => path.push(name.clone()),
+            Ev::End { start, .. } => {
+                let full = path.join("/");
+                match full.as_str() {
+                    "project/build/plugins" => spots.plugins_close = Some(*start),
+                    "project/build" => spots.build_close = Some(*start),
+                    "project/build/plugins/plugin" if in_compiler => spots.plugin_close = Some(*start),
+                    "project/build/plugins/plugin/configuration" if in_compiler => spots.config_close = Some(*start),
+                    "project/build/plugins/plugin/configuration/annotationProcessorPaths" if in_compiler => {
+                        spots.paths_close = Some(*start)
+                    }
+                    _ => {}
+                }
+                if full == "project/build/plugins/plugin" {
+                    plugin_artifact = None;
+                    in_compiler = false;
+                }
+                path.pop();
+            }
+            Ev::Text { start, end } => {
+                if path.join("/") == "project/build/plugins/plugin/artifactId" {
+                    plugin_artifact = Some(unescape(&text[*start..*end]));
+                    in_compiler = plugin_artifact.as_deref() == Some("maven-compiler-plugin");
+                }
+            }
+            Ev::Empty { .. } => {}
+        }
+    }
+    let _ = plugin_artifact;
+    Ok(spots)
+}
+
+impl PomEditor {
+    /// Registers an annotation processor in `maven-compiler-plugin`'s
+    /// `annotationProcessorPaths`, creating the plugin/configuration if needed.
+    ///
+    /// Note: the `artifactId` of the compiler plugin must come before its
+    /// `<configuration>`, which is the common layout.
+    pub fn add_annotation_processor(&mut self, coord: &Coord, version: Option<&str>) -> Result<()> {
+        let unit = unit_indent(&self.text);
+        let nl = self.nl().to_string();
+        let spots = compiler_spots(&self.text)?;
+        let pom = scan(&self.text)?;
+        let base = pom.project_close.map(|c| line_indent(&self.text, c).to_string()).unwrap_or_default();
+
+        let path_block = |ind: &str| {
+            let inner = format!("{ind}{unit}");
+            let mut s = format!("{ind}<path>{nl}");
+            s.push_str(&format!("{inner}<groupId>{}</groupId>{nl}", escape(&coord.group)));
+            s.push_str(&format!("{inner}<artifactId>{}</artifactId>{nl}", escape(&coord.artifact)));
+            if let Some(v) = version {
+                s.push_str(&format!("{inner}<version>{}</version>{nl}", escape(v)));
+            }
+            s.push_str(&format!("{ind}</path>{nl}"));
+            s
+        };
+        let insert_before_line = |text: &mut String, close: usize, block: &str| {
+            let ls = line_start(text, close);
+            if text[ls..close].trim().is_empty() {
+                text.insert_str(ls, block);
+            } else {
+                text.insert_str(close, &format!("{nl}{}{}", block.trim_end(), nl));
+            }
+        };
+
+        if let Some(close) = spots.paths_close {
+            let ind = format!("{}{unit}", line_indent(&self.text, close));
+            let block = path_block(&ind);
+            insert_before_line(&mut self.text, close, &block);
+            return Ok(());
+        }
+        if let Some(close) = spots.config_close {
+            let ind1 = format!("{}{unit}", line_indent(&self.text, close));
+            let ind2 = format!("{ind1}{unit}");
+            let block = format!(
+                "{ind1}<annotationProcessorPaths>{nl}{}{ind1}</annotationProcessorPaths>{nl}",
+                path_block(&ind2)
+            );
+            insert_before_line(&mut self.text, close, &block);
+            return Ok(());
+        }
+        let plugin_xml = |ind: &str| {
+            let i1 = format!("{ind}{unit}");
+            let i2 = format!("{i1}{unit}");
+            let i3 = format!("{i2}{unit}");
+            format!(
+                "{ind}<plugin>{nl}{i1}<groupId>org.apache.maven.plugins</groupId>{nl}{i1}<artifactId>maven-compiler-plugin</artifactId>{nl}{i1}<configuration>{nl}{i2}<annotationProcessorPaths>{nl}{}{i2}</annotationProcessorPaths>{nl}{i1}</configuration>{nl}{ind}</plugin>{nl}",
+                path_block(&i3)
+            )
+        };
+        if let Some(close) = spots.plugin_close {
+            // Compiler plugin without <configuration>.
+            let i1 = format!("{}{unit}", line_indent(&self.text, close));
+            let i2 = format!("{i1}{unit}");
+            let i3 = format!("{i2}{unit}");
+            let block = format!(
+                "{i1}<configuration>{nl}{i2}<annotationProcessorPaths>{nl}{}{i2}</annotationProcessorPaths>{nl}{i1}</configuration>{nl}",
+                path_block(&i3)
+            );
+            insert_before_line(&mut self.text, close, &block);
+            return Ok(());
+        }
+        if let Some(close) = spots.plugins_close {
+            let ind = format!("{}{unit}", line_indent(&self.text, close));
+            insert_before_line(&mut self.text, close, &plugin_xml(&ind));
+            return Ok(());
+        }
+        if let Some(close) = spots.build_close {
+            let ind1 = format!("{}{unit}", line_indent(&self.text, close));
+            let ind2 = format!("{ind1}{unit}");
+            let block = format!("{ind1}<plugins>{nl}{}{ind1}</plugins>{nl}", plugin_xml(&ind2));
+            insert_before_line(&mut self.text, close, &block);
+            return Ok(());
+        }
+        let at =
+            pom.project_close.map(|c| line_start(&self.text, c)).ok_or_else(|| anyhow::anyhow!("no </project>"))?;
+        let ind1 = format!("{base}{unit}");
+        let ind2 = format!("{ind1}{unit}");
+        let ind3 = format!("{ind2}{unit}");
+        let block =
+            format!("{ind1}<build>{nl}{ind2}<plugins>{nl}{}{ind2}</plugins>{nl}{ind1}</build>{nl}", plugin_xml(&ind3));
+        self.text.insert_str(at, &block);
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -564,6 +714,41 @@ mod tests {
         ed.remove_property("hikari.version").unwrap();
         assert!(!ed.text.contains("hikari.version>5"));
         assert!(ed.text.contains("<java.version>21</java.version>"));
+    }
+
+    #[test]
+    fn annotation_processor_paths_in_all_layouts() {
+        let coord = Coord::new("org.projectlombok", "lombok");
+        // existing compiler plugin without configuration (POM fixture)
+        let mut ed = PomEditor::new(POM);
+        ed.add_annotation_processor(&coord, Some("1.18.30")).unwrap();
+        assert!(ed.text.contains("<annotationProcessorPaths>"), "{}", ed.text);
+        assert!(ed.text.contains("<artifactId>lombok</artifactId>"));
+        assert!(scan(&ed.text).is_ok());
+        // a second processor joins the same list
+        ed.add_annotation_processor(&Coord::new("org.mapstruct", "mapstruct-processor"), Some("1.5.5.Final")).unwrap();
+        assert_eq!(ed.text.matches("<annotationProcessorPaths>").count(), 1);
+        assert_eq!(ed.text.matches("<path>").count(), 2);
+        // no build section at all
+        let bare = "<project>\n  <modelVersion>4.0.0</modelVersion>\n</project>\n";
+        let mut ed = PomEditor::new(bare);
+        ed.add_annotation_processor(&coord, None).unwrap();
+        assert!(ed.text.contains("<build>") && ed.text.contains("maven-compiler-plugin"), "{}", ed.text);
+        assert!(scan(&ed.text).is_ok());
+        // build without plugins, and plugins without the compiler
+        let mut ed = PomEditor::new("<project>\n  <build>\n  </build>\n</project>\n");
+        ed.add_annotation_processor(&coord, None).unwrap();
+        assert!(ed.text.contains("<plugins>"), "{}", ed.text);
+        let mut ed = PomEditor::new(
+            "<project>\n  <build>\n    <plugins>\n      <plugin>\n        <artifactId>other</artifactId>\n      </plugin>\n    </plugins>\n  </build>\n</project>\n",
+        );
+        ed.add_annotation_processor(&coord, None).unwrap();
+        assert!(
+            ed.text.contains("maven-compiler-plugin") && ed.text.contains("<artifactId>other</artifactId>"),
+            "{}",
+            ed.text
+        );
+        assert!(scan(&ed.text).is_ok());
     }
 
     #[test]

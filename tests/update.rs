@@ -78,6 +78,7 @@ fn update_all_includes_major_and_shows_release_notes() {
     let s = stdout(&out);
     assert!(s.contains("major update"), "{s}");
     assert!(s.contains("JUnit 6.0.1") && s.contains("Removed deprecated APIs"), "{s}");
+    assert!(s.contains("no release notes found"), "majors without notes are reported: {s}");
     let cat = env.read("gradle/libs.versions.toml");
     assert!(cat.contains("junit = \"6.0.1\""), "{cat}");
     assert!(cat.contains("guava = \"33.2.1-jre\""), "{cat}");

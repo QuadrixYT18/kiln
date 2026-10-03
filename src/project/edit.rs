@@ -238,9 +238,16 @@ fn add_maven(ws: &mut Workspace, req: &AddRequest<'_>) -> Result<AddOutcome> {
         }
     });
     if req.scope == Scope::AnnotationProcessor {
-        notes.push("Maven has no annotationProcessor scope; added with scope `provided` (annotation processors on the classpath are picked up automatically)".to_string());
+        // Maven has no annotation-processor scope: register it in the compiler plugin's
+        // annotationProcessorPaths (which needs an explicit version).
+        let Some(version) = req.version else {
+            bail!("an explicit version is required for annotation processors in Maven");
+        };
+        ed.add_annotation_processor(req.coord, Some(version))?;
+        notes.push("added to maven-compiler-plugin `annotationProcessorPaths`".to_string());
+    } else {
+        ed.add_dependency(req.coord, req.version, req.scope, prop.as_deref())?;
     }
-    ed.add_dependency(req.coord, req.version, req.scope, prop.as_deref())?;
     ws.set(file, ed.text)?;
     Ok(AddOutcome::Added { notes })
 }

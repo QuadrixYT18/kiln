@@ -180,3 +180,46 @@ fn alias_repository_is_added_to_gradle_and_maven_builds() {
     env.kiln().args(["add", "velocity-api", "--compile-only", "--pre"]).assert().success();
     assert_eq!(env.read("pom.xml").matches("<repository>").count(), 1);
 }
+
+#[test]
+fn maven_annotation_processor_goes_into_the_compiler_plugin() {
+    let env = Env::new("maven");
+    env.kiln().args(["add", "org.projectlombok:lombok", "--annotation-processor"]).assert().success();
+    let pom = env.read("pom.xml");
+    assert!(pom.contains("<annotationProcessorPaths>") && pom.contains("<artifactId>lombok</artifactId>"), "{pom}");
+    // it is registered in the existing compiler plugin, not as a dependency
+    let compiler = pom.find("maven-compiler-plugin").unwrap();
+    assert!(pom.find("<annotationProcessorPaths>").unwrap() > compiler, "{pom}");
+    assert_eq!(pom.matches("<dependency>").count(), 2, "{pom}");
+}
+
+#[test]
+fn search_falls_back_to_the_central_website_api() {
+    let env = Env::new("gradle-kts");
+    env.mock.remove("/search");
+    env.mock.route(
+        "/fallback",
+        r#"{"components":[{"namespace":"it.unimi.dsi","name":"fastutil","latestVersionInfo":{"version":"8.5.14","timestampUnixWithMS":1700000000000}}]}"#,
+    );
+    let base = env.mock.base();
+    let out = env
+        .kiln()
+        .env("KILN_SEARCH_FALLBACK_URL", format!("{base}/fallback"))
+        .args(["add", "fastutil"])
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(env.read("build.gradle.kts").contains("it.unimi.dsi:fastutil:8.5.14"));
+}
+
+#[test]
+fn network_errors_hide_urls_unless_verbose() {
+    let env = Env::new("gradle-catalog");
+    let dead = "http://127.0.0.1:9/maven2";
+    let short = env.kiln().env("KILN_CENTRAL_URL", dead).arg("outdated").output().unwrap();
+    let text = format!("{}{}", stdout(&short), String::from_utf8_lossy(&short.stderr));
+    assert!(text.contains("could not connect") && !text.contains("maven-metadata.xml"), "{text}");
+    let verbose = env.kiln().env("KILN_CENTRAL_URL", dead).args(["-v", "outdated"]).output().unwrap();
+    let text = format!("{}{}", stdout(&verbose), String::from_utf8_lossy(&verbose.stderr));
+    assert!(text.contains("maven-metadata.xml"), "{text}");
+}
